@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::model::{self, VariableSetAssignment};
+use crate::model::{self, ActionBuilder, VariableSetAssignment};
 
 #[derive(Debug, Clone)]
 pub struct Transition {
@@ -107,5 +107,29 @@ impl Mdp {
             println!();
             println!();
         }
+    }
+}
+
+pub struct MdpBuilder {
+    actions: Vec<ActionBuilder>,
+    initial_state: VariableSetAssignment,
+}
+
+impl MdpBuilder {
+    pub fn new(initial_state: VariableSetAssignment) -> Self {
+        Self {
+            actions: vec![],
+            initial_state,
+        }
+    }
+
+    pub fn add_action(mut self, action_builder: ActionBuilder) -> Self {
+        self.actions.push(action_builder);
+        self
+    }
+
+    pub fn build(self) -> Mdp {
+        let actions = self.actions.into_iter().map(|a| a.build()).collect();
+        Mdp::new(self.initial_state, actions)
     }
 }
