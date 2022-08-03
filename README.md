@@ -30,3 +30,7 @@ Finally, it organizes the avaliable actions and transitions from actions in a ha
 ### `solver.rs`
 
 This is a very simple value iteration solver for an `Mdp`. It can also generate a policy once solved.
+
+---
+
+_plz note that code is hastily written to get something working quick :)_
