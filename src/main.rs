@@ -1,9 +1,11 @@
 use mdp::MdpBuilder;
+use solver::ValueIterationSolver;
 
 use crate::model::{ActionBuilder, VariableSetAssignment, FALSE, TRUE};
 
 mod mdp;
 mod model;
+mod solver;
 
 fn main() {
     let mut initial_state = VariableSetAssignment::new();
@@ -65,4 +67,22 @@ fn main() {
         .build();
 
     mdp.print();
+
+    let mut solver = ValueIterationSolver::new(&mdp);
+    solver.solve();
+    println!("Computed Policy");
+    for (state, (action, state_value)) in solver
+        .get_policy()
+        .actions()
+        .iter()
+        .zip(solver.values().iter())
+        .enumerate()
+    {
+        println!(
+            "State {:?}: Action: {:?}. State Value: {:?}",
+            state,
+            action.as_ref().unwrap_or(&"None".to_string()),
+            state_value,
+        );
+    }
 }

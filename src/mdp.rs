@@ -11,6 +11,20 @@ pub struct Transition {
     name: String,
 }
 
+impl Transition {
+    pub fn probability(&self) -> f64 {
+        self.probability
+    }
+
+    pub fn reward(&self) -> f64 {
+        self.reward
+    }
+
+    pub fn to(&self) -> usize {
+        self.to
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Mdp {
     states: Vec<VariableSetAssignment>,
@@ -107,6 +121,14 @@ impl Mdp {
             println!();
             println!();
         }
+    }
+
+    pub fn states(&self) -> &[VariableSetAssignment] {
+        self.states.as_ref()
+    }
+
+    pub fn actions(&self, state: usize) -> &HashMap<String, Vec<Transition>> {
+        &self.actions_from_states[state]
     }
 }
 

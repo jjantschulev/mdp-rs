@@ -1,43 +1,7 @@
-use std::{collections::HashMap, ops::Range};
+use std::collections::HashMap;
 
 pub const TRUE: isize = 1;
 pub const FALSE: isize = 0;
-
-pub const BOOLEAN: [isize; 2] = [TRUE, FALSE];
-
-#[derive(Clone)]
-pub struct VariableSet {
-    set: HashMap<String, Vec<isize>>,
-}
-
-impl VariableSet {
-    pub fn new() -> Self {
-        Self {
-            set: HashMap::new(),
-        }
-    }
-
-    pub fn add<T: Iterator<Item = isize>>(mut self, name: &str, values: T) -> Self {
-        self.set.insert(name.to_owned(), values.collect());
-        self
-    }
-
-    pub fn add_slice(mut self, name: &str, values: &[isize]) -> Self {
-        self.set.insert(name.to_owned(), values.to_vec());
-        self
-    }
-
-    pub fn add_boolean(mut self, name: &str) -> Self {
-        self.set.insert(name.to_owned(), BOOLEAN.to_vec());
-        self
-    }
-
-    pub fn add_range(mut self, name: &str, range: Range<isize>) -> Self {
-        self.set
-            .insert(name.to_owned(), range.into_iter().collect());
-        self
-    }
-}
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct VariableSetAssignment {
@@ -128,3 +92,41 @@ impl ActionBuilder {
         self.action
     }
 }
+
+// Might need this later hehe:
+
+// pub const BOOLEAN: [isize; 2] = [TRUE, FALSE];
+
+// #[derive(Clone)]
+// pub struct VariableSet {
+//     set: HashMap<String, Vec<isize>>,
+// }
+
+// impl VariableSet {
+//     pub fn new() -> Self {
+//         Self {
+//             set: HashMap::new(),
+//         }
+//     }
+
+//     pub fn add<T: Iterator<Item = isize>>(mut self, name: &str, values: T) -> Self {
+//         self.set.insert(name.to_owned(), values.collect());
+//         self
+//     }
+
+//     pub fn add_slice(mut self, name: &str, values: &[isize]) -> Self {
+//         self.set.insert(name.to_owned(), values.to_vec());
+//         self
+//     }
+
+//     pub fn add_boolean(mut self, name: &str) -> Self {
+//         self.set.insert(name.to_owned(), BOOLEAN.to_vec());
+//         self
+//     }
+
+//     pub fn add_range(mut self, name: &str, range: Range<isize>) -> Self {
+//         self.set
+//             .insert(name.to_owned(), range.into_iter().collect());
+//         self
+//     }
+// }
