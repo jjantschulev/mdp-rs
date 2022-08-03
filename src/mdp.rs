@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use crate::model::{self, ActionBuilder, VariableSetAssignment};
 
@@ -25,10 +25,22 @@ impl Transition {
     }
 }
 
+impl Display for Transition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:.1}% chance | S({}) => S({}) | Reward: {}",
+            self.probability * 100.0,
+            self.from,
+            self.to,
+            self.reward
+        )
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Mdp {
     states: Vec<VariableSetAssignment>,
-    transitions: Vec<Transition>,
     actions_from_states: Vec<HashMap<String, Vec<Transition>>>,
 }
 
@@ -93,28 +105,18 @@ impl Mdp {
 
         Self {
             states,
-            transitions,
             actions_from_states,
         }
     }
 
     pub fn print(&self) {
-        println!("\n\n================    States    ================");
-        for (i, state) in self.states.iter().enumerate() {
-            println!("State {:?}   =>   {:?}", i, state);
-        }
-        println!("\n\n================  Transitions  ================");
-        for (i, transition) in self.transitions.iter().enumerate() {
-            println!("Transition {:?}   =>  {:?}", i, transition);
-        }
-
         println!("\n\n================  Transitions From States  ================\n");
         for (i, state) in self.states.iter().enumerate() {
-            println!("State {:?} :  {:?}", i, state);
+            println!("State {} : {}", i, state);
             for (name, transitions) in self.actions_from_states[i].iter() {
                 println!("   Action: {:?}", name);
                 for t in transitions {
-                    println!("      -> {:?}", t);
+                    println!("      -> {}", t);
                 }
                 println!();
             }

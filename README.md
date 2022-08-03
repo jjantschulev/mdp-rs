@@ -2,6 +2,15 @@
 
 I'm making this repo as an environment for experiementing with MDP's and algorithms used to solve and construct them. This is both to improve my knowledge of rust and MDPs for COMP4620 @ ANU.
 
+## Examples
+
+Use `cargo run --example <example>` to run an example from the `./examples/` directory.
+
+So far I've implemented the following examples:
+
+- `cookie_monster` Question 2 from first lab.  
+  _(run with `cargo run --example cookie_monster`)_
+
 ## Features
 
 Listing features here to not forget what i've built.

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 pub const TRUE: isize = 1;
 pub const FALSE: isize = 0;
@@ -6,6 +6,12 @@ pub const FALSE: isize = 0;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct VariableSetAssignment {
     assignment: HashMap<String, isize>,
+}
+
+impl Display for VariableSetAssignment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.assignment)
+    }
 }
 
 impl VariableSetAssignment {

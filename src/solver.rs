@@ -11,20 +11,35 @@ impl Policy {
     pub fn actions(&self) -> &[Option<String>] {
         self.actions.as_ref()
     }
+
+    pub fn print(&self, mdp: &Mdp, values: &[f64]) {
+        println!("================ Computed Policy ================\n");
+        for (state, (action, state_value)) in self.actions().iter().zip(values.iter()).enumerate() {
+            println!("State {} {}", state, mdp.states()[state]);
+            println!(
+                "  - Action:      {:?}",
+                action.as_ref().unwrap_or(&"None".to_string()),
+            );
+            println!("  - State Value: {:.1}", state_value,);
+            println!()
+        }
+    }
 }
 
 pub struct ValueIterationSolver<'a> {
     values: Vec<f64>,
     old_values: Vec<f64>,
     mdp: &'a Mdp,
+    discount: f64,
 }
 
 impl<'a> ValueIterationSolver<'a> {
-    pub fn new(mdp: &'a Mdp) -> Self {
+    pub fn new(mdp: &'a Mdp, discount: f64) -> Self {
         Self {
             values: vec![0.0; mdp.states().len()],
             old_values: vec![0.0; mdp.states().len()],
             mdp,
+            discount,
         }
     }
 
@@ -36,7 +51,8 @@ impl<'a> ValueIterationSolver<'a> {
                 .map(|(_, transitions)| {
                     let mut expected_reward = 0.0;
                     for t in transitions {
-                        expected_reward += t.reward() * t.probability() + self.values[t.to()]
+                        expected_reward +=
+                            t.reward() * t.probability() + self.discount * self.values[t.to()]
                     }
                     expected_reward
                 })

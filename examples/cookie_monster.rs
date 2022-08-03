@@ -65,21 +65,8 @@ fn main() {
 
     mdp.print();
 
-    let mut solver = ValueIterationSolver::new(&mdp);
+    let mut solver = ValueIterationSolver::new(&mdp, 0.99);
     solver.solve();
-    println!("Computed Policy");
-    for (state, (action, state_value)) in solver
-        .get_policy()
-        .actions()
-        .iter()
-        .zip(solver.values().iter())
-        .enumerate()
-    {
-        println!(
-            "State {:?}: Action: {:?}. State Value: {:?}",
-            state,
-            action.as_ref().unwrap_or(&"None".to_string()),
-            state_value,
-        );
-    }
+    let policy = solver.get_policy();
+    policy.print(&mdp, solver.values());
 }
