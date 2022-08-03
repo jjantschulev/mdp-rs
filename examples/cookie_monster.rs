@@ -1,11 +1,8 @@
-use mdp::MdpBuilder;
-use solver::ValueIterationSolver;
-
-use crate::model::{ActionBuilder, VariableSetAssignment, FALSE, TRUE};
-
-mod mdp;
-mod model;
-mod solver;
+use mdp_rs::{
+    mdp::MdpBuilder,
+    model::{ActionBuilder, VariableSetAssignment, FALSE, TRUE},
+    solver::ValueIterationSolver,
+};
 
 fn main() {
     let mut initial_state = VariableSetAssignment::new();
