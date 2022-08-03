@@ -44,6 +44,9 @@ impl<'a> ValueIterationSolver<'a> {
     }
 
     fn iterate(&mut self) {
+        // Save the old values, so we can compare and stop when the change is small enough.
+        self.old_values.clone_from(&self.values);
+
         for i in 0..self.mdp.states().len() {
             let actions = self.mdp.actions(i);
             let max_value = actions
@@ -51,8 +54,8 @@ impl<'a> ValueIterationSolver<'a> {
                 .map(|(_, transitions)| {
                     let mut expected_reward = 0.0;
                     for t in transitions {
-                        expected_reward +=
-                            t.reward() * t.probability() + self.discount * self.values[t.to()]
+                        expected_reward += t.probability()
+                            * (t.reward() + self.discount * self.old_values[t.to()]);
                     }
                     expected_reward
                 })
@@ -61,8 +64,6 @@ impl<'a> ValueIterationSolver<'a> {
 
             self.values[i] = max_value;
         }
-
-        self.old_values.clone_from(&self.values);
     }
 
     pub fn solve(&mut self) {
@@ -96,7 +97,8 @@ impl<'a> ValueIterationSolver<'a> {
                     .map(|(action, transitions)| {
                         let mut expected_reward = 0.0;
                         for t in transitions {
-                            expected_reward += t.reward() * t.probability() + self.values[t.to()]
+                            expected_reward += t.probability()
+                                * (t.reward() + self.discount * self.old_values[t.to()]);
                         }
                         (expected_reward, action)
                     })
