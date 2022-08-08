@@ -1,6 +1,9 @@
-use std::{collections::HashMap, fmt::Display};
+use crate::model::{self, ActionBuilder, State};
 
-use crate::model::{self, ActionBuilder, VariableSetAssignment};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+};
 
 #[derive(Debug, Clone)]
 pub struct Transition {
@@ -39,43 +42,45 @@ impl Display for Transition {
 }
 
 #[derive(Debug, Clone)]
-pub struct Mdp {
-    states: Vec<VariableSetAssignment>,
+pub struct Mdp<S: State> {
+    states: Vec<S>,
     actions_from_states: Vec<HashMap<String, Vec<Transition>>>,
 }
 
-impl Mdp {
-    pub fn new(initial: VariableSetAssignment, actions: Vec<model::Action>) -> Self {
-        let mut states = vec![initial.clone()];
+impl<S: State> Mdp<S> {
+    pub fn new(initial: S, actions: Vec<model::Action<S>>) -> Self {
+        let mut stack = vec![initial.get_hash()];
+        let mut hashmap: HashMap<u64, usize> = HashMap::new();
+        hashmap.insert(initial.get_hash(), 0);
+        let mut states = vec![initial];
+
         let mut transitions = vec![];
 
-        let mut stack = vec![initial];
-
-        while let Some(assignment) = stack.pop() {
-            let from_index = states.iter().position(|s| s == &assignment).unwrap();
+        while let Some(state_hash) = stack.pop() {
+            let from_index = *hashmap.get(&state_hash).unwrap();
             for action in actions.iter() {
-                if action.preconditions_valid(&assignment) {
-                    for (new_state, chance, reward) in action.get_successor_states(&assignment) {
-                        let mut found = true;
-                        let state_index = states
-                            .iter()
-                            .position(|s| s == &new_state)
-                            .unwrap_or_else(|| {
-                                states.push(new_state.clone());
-                                found = false;
-                                states.len() - 1
-                            });
+                let state = &states[from_index];
+                if action.preconditions_valid(state) {
+                    for action_result in action.get_successor_states(&state) {
+                        let resulting_state_hash = action_result.state.get_hash();
+                        let (index, exists) = match hashmap.get(&resulting_state_hash) {
+                            Some(index) => (*index, true),
+                            None => (states.len(), false),
+                        };
+
+                        if !exists {
+                            states.push(action_result.state);
+                            hashmap.insert(resulting_state_hash, index);
+                            stack.push(resulting_state_hash);
+                        }
                         let transition = Transition {
                             from: from_index,
-                            to: state_index,
+                            to: index,
                             name: action.name().to_string(),
-                            probability: chance,
-                            reward,
+                            probability: action_result.probability,
+                            reward: action_result.reward,
                         };
                         transitions.push(transition);
-                        if !found {
-                            stack.push(new_state);
-                        }
                     }
                 }
             }
@@ -109,10 +114,20 @@ impl Mdp {
         }
     }
 
+    pub fn states(&self) -> &[S] {
+        self.states.as_ref()
+    }
+
+    pub fn actions(&self, state: usize) -> &HashMap<String, Vec<Transition>> {
+        &self.actions_from_states[state]
+    }
+}
+
+impl<S: State + Debug> Mdp<S> {
     pub fn print(&self) {
         println!("\n\n================  Transitions From States  ================\n");
         for (i, state) in self.states.iter().enumerate() {
-            println!("State {} : {}", i, state);
+            println!("State {} : {:?}", i, state);
             for (name, transitions) in self.actions_from_states[i].iter() {
                 println!("   Action: {:?}", name);
                 for t in transitions {
@@ -124,35 +139,27 @@ impl Mdp {
             println!();
         }
     }
-
-    pub fn states(&self) -> &[VariableSetAssignment] {
-        self.states.as_ref()
-    }
-
-    pub fn actions(&self, state: usize) -> &HashMap<String, Vec<Transition>> {
-        &self.actions_from_states[state]
-    }
 }
 
-pub struct MdpBuilder {
-    actions: Vec<ActionBuilder>,
-    initial_state: VariableSetAssignment,
+pub struct MdpBuilder<S: State> {
+    actions: Vec<ActionBuilder<S>>,
+    initial_state: S,
 }
 
-impl MdpBuilder {
-    pub fn new(initial_state: VariableSetAssignment) -> Self {
+impl<S: State> MdpBuilder<S> {
+    pub fn new(initial_state: S) -> Self {
         Self {
             actions: vec![],
             initial_state,
         }
     }
 
-    pub fn add_action(mut self, action_builder: ActionBuilder) -> Self {
+    pub fn add_action(mut self, action_builder: ActionBuilder<S>) -> Self {
         self.actions.push(action_builder);
         self
     }
 
-    pub fn build(self) -> Mdp {
+    pub fn build(self) -> Mdp<S> {
         let actions = self.actions.into_iter().map(|a| a.build()).collect();
         Mdp::new(self.initial_state, actions)
     }

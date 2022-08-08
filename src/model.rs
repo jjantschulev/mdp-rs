@@ -1,62 +1,47 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
 
-pub const TRUE: isize = 1;
-pub const FALSE: isize = 0;
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct VariableSetAssignment {
-    assignment: HashMap<String, isize>,
-}
-
-impl Display for VariableSetAssignment {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.assignment)
+pub trait State: Clone + Eq + Hash {
+    fn get_hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        hasher.finish()
     }
 }
 
-impl VariableSetAssignment {
-    pub fn new() -> Self {
-        Self {
-            assignment: HashMap::new(),
-        }
-    }
+impl<T: Clone + Eq + Hash> State for T {}
 
-    pub fn set(&mut self, name: &str, value: isize) {
-        self.assignment.insert(name.to_string(), value);
-    }
-
-    pub fn get(&self, name: &str) -> Option<&isize> {
-        self.assignment.get(name)
-    }
-
-    pub fn unset(&mut self, name: &str) -> Option<isize> {
-        self.assignment.remove(name)
-    }
-}
-
-pub struct Action {
+pub struct Action<S: State> {
     name: String,
-    preconditions: Vec<(String, Box<dyn Fn(Option<isize>) -> bool>)>,
-    outcomes: Vec<Box<dyn Fn(&mut VariableSetAssignment) -> (f64, f64)>>,
+    preconditions: Vec<Box<dyn Fn(&S) -> bool>>,
+    outcomes: Vec<Box<dyn Fn(&mut S, &mut f64) -> f64>>,
 }
 
-impl Action {
-    pub fn preconditions_valid(&self, assignment: &VariableSetAssignment) -> bool {
-        self.preconditions
-            .iter()
-            .all(|(name, check)| check(assignment.get(name).map(|i| *i)))
+pub struct ActionResult<S: State> {
+    pub(crate) state: S,
+    pub(crate) probability: f64,
+    pub(crate) reward: f64,
+}
+
+impl<S: State> Action<S> {
+    pub fn preconditions_valid(&self, state: &S) -> bool {
+        self.preconditions.iter().all(|check| check(state))
     }
 
-    pub fn get_successor_states(
-        &self,
-        assignment: &VariableSetAssignment,
-    ) -> Vec<(VariableSetAssignment, f64, f64)> {
+    pub fn get_successor_states(&self, state: &S) -> Vec<ActionResult<S>> {
         self.outcomes
             .iter()
             .map(|transition| {
-                let mut a = assignment.clone();
-                let (chance, reward) = transition(&mut a);
-                (a, chance, reward)
+                let mut next_state = state.clone();
+                let mut reward = 0.0;
+                let chance = transition(&mut next_state, &mut reward);
+                ActionResult {
+                    state: next_state,
+                    probability: chance,
+                    reward,
+                }
             })
             .collect()
     }
@@ -66,11 +51,11 @@ impl Action {
     }
 }
 
-pub struct ActionBuilder {
-    action: Action,
+pub struct ActionBuilder<S: State> {
+    action: Action<S>,
 }
 
-impl ActionBuilder {
+impl<S: State> ActionBuilder<S> {
     pub fn new(name: &str) -> Self {
         Self {
             action: Action {
@@ -81,20 +66,17 @@ impl ActionBuilder {
         }
     }
 
-    pub fn precondition(mut self, var: &str, valid: Box<dyn Fn(Option<isize>) -> bool>) -> Self {
-        self.action.preconditions.push((var.to_owned(), valid));
+    pub fn precondition(mut self, valid: Box<dyn Fn(&S) -> bool>) -> Self {
+        self.action.preconditions.push(valid);
         self
     }
 
-    pub fn outcome(
-        mut self,
-        effect: Box<dyn Fn(&mut VariableSetAssignment) -> (f64, f64)>,
-    ) -> Self {
+    pub fn outcome(mut self, effect: Box<dyn Fn(&mut S, &mut f64) -> f64>) -> Self {
         self.action.outcomes.push(effect);
         self
     }
 
-    pub fn build(self) -> Action {
+    pub fn build(self) -> Action<S> {
         self.action
     }
 }
