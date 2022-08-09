@@ -1,8 +1,9 @@
-use crate::model::{self, IActionBuilder, State};
+use crate::model::{self, ActionType, IActionBuilder, State};
 
 use std::{
     collections::HashMap,
     fmt::{Debug, Display},
+    rc::Rc,
 };
 
 #[derive(Debug, Clone)]
@@ -11,7 +12,7 @@ pub struct Transition {
     to: usize,
     reward: f64,
     probability: f64,
-    name: String,
+    action: Rc<dyn ActionType>,
 }
 
 impl Transition {
@@ -44,7 +45,7 @@ impl Display for Transition {
 #[derive(Debug, Clone)]
 pub struct Mdp<S: State> {
     states: Vec<S>,
-    actions_from_states: Vec<HashMap<String, Vec<Transition>>>,
+    actions_from_states: Vec<HashMap<Rc<dyn ActionType>, Vec<Transition>>>,
 }
 
 impl<S: State> Mdp<S> {
@@ -76,7 +77,7 @@ impl<S: State> Mdp<S> {
                         let transition = Transition {
                             from: from_index,
                             to: index,
-                            name: action.name(),
+                            action: action.action(),
                             probability: action_result.probability,
                             reward: action_result.reward,
                         };
@@ -94,12 +95,12 @@ impl<S: State> Mdp<S> {
                     .iter()
                     .filter_map(|t| if t.from == i { Some(t.clone()) } else { None })
                     .fold(HashMap::new(), |mut map, t| {
-                        let exists = map.get(&t.name).is_some();
+                        let exists = map.get(&t.action).is_some();
                         let vec = if exists {
-                            map.get_mut(&t.name).unwrap()
+                            map.get_mut(&t.action).unwrap()
                         } else {
-                            map.insert(t.name.clone(), vec![]);
-                            map.get_mut(&t.name).unwrap()
+                            map.insert(t.action.clone(), vec![]);
+                            map.get_mut(&t.action).unwrap()
                         };
 
                         vec.push(t);
@@ -118,7 +119,7 @@ impl<S: State> Mdp<S> {
         self.states.as_ref()
     }
 
-    pub fn actions(&self, state: usize) -> &HashMap<String, Vec<Transition>> {
+    pub fn actions(&self, state: usize) -> &HashMap<Rc<dyn ActionType>, Vec<Transition>> {
         &self.actions_from_states[state]
     }
 }

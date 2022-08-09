@@ -25,7 +25,7 @@ impl Position {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Hash, Debug)]
 enum Direction {
     Up,
     Down,
@@ -54,7 +54,7 @@ impl Direction {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Hash, Debug)]
 struct Walk(Direction);
 
 impl GrounableAction for Walk {

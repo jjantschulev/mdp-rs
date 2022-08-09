@@ -78,7 +78,7 @@ impl<'a, S: State> ValueIterationSolver<'a, S> {
                         }
                         (expected_reward, action)
                     })
-                    .reduce(|accum, item| if accum >= item { accum } else { item })
+                    .reduce(|accum, item| if accum.0 >= item.0 { accum } else { item })
                     .map(|(_, name)| name.to_string())
             })
             .collect();

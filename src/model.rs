@@ -54,8 +54,8 @@ impl<S: State> Action<S> {
             .collect()
     }
 
-    pub fn name(&self) -> String {
-        self.action.to_string()
+    pub fn action(&self) -> Rc<dyn ActionType> {
+        self.action.clone()
     }
 }
 
@@ -139,15 +139,48 @@ impl<S: State, A: ActionType + GrounableAction + 'static> GroundingActionBuilder
 
 pub trait ActionType {
     fn to_string(&self) -> String;
+    fn hash(&self) -> u64;
+    fn eq(&self, other: &dyn ActionType) -> bool;
 }
 
-pub trait GrounableAction: Sized {
-    fn enumerate() -> Vec<Self>;
+impl Debug for dyn ActionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
 }
 
-impl<T: Debug> ActionType for T {
+impl Hash for dyn ActionType {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(self.hash())
+    }
+}
+
+impl PartialEq for dyn ActionType {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash() == other.hash()
+    }
+}
+
+impl Eq for dyn ActionType {}
+
+impl<T: Debug + Hash> ActionType for T {
     fn to_string(&self) -> String {
         format!("{:?}", self)
+    }
+    fn hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    fn eq(&self, other: &dyn ActionType) -> bool {
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        let my_hash = hasher.finish();
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        let other_hash = hasher.finish();
+        my_hash == other_hash
     }
 }
 
@@ -159,6 +192,10 @@ impl<S: State, A: ActionType + 'static> IActionBuilder<S> for SingleActionBuilde
     fn build(&self) -> Vec<Action<S>> {
         vec![self.build()]
     }
+}
+
+pub trait GrounableAction: Sized {
+    fn enumerate() -> Vec<Self>;
 }
 
 impl<S: State, A: ActionType + 'static + GrounableAction> IActionBuilder<S>

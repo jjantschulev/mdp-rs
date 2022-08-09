@@ -11,13 +11,13 @@ struct State {
 }
 
 // Action definitions
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct VisitBakery;
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct RobBakery;
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct VendingMachine;
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct Wait;
 
 fn main() {
