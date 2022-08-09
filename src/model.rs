@@ -1,6 +1,9 @@
 use std::{
     collections::hash_map::DefaultHasher,
+    fmt::Debug,
     hash::{Hash, Hasher},
+    marker::PhantomData,
+    rc::Rc,
 };
 
 pub trait State: Clone + Eq + Hash {
@@ -13,10 +16,15 @@ pub trait State: Clone + Eq + Hash {
 
 impl<T: Clone + Eq + Hash> State for T {}
 
+type PreconditionFn<S> = dyn Fn(&S) -> bool;
+type OutcomeFn<S> = dyn Fn(&mut S, &mut f64) -> f64;
+type ActionBasedPreconditionFn<S, A> = dyn Fn(Rc<A>) -> Rc<dyn Fn(&S) -> bool>;
+type ActionBasedOutcomeFn<S, A> = dyn Fn(Rc<A>) -> Rc<dyn Fn(&mut S, &mut f64) -> f64>;
+
 pub struct Action<S: State> {
-    name: String,
-    preconditions: Vec<Box<dyn Fn(&S) -> bool>>,
-    outcomes: Vec<Box<dyn Fn(&mut S, &mut f64) -> f64>>,
+    action: Rc<dyn ActionType>,
+    preconditions: Vec<Rc<PreconditionFn<S>>>,
+    outcomes: Vec<Rc<OutcomeFn<S>>>,
 }
 
 pub struct ActionResult<S: State> {
@@ -46,75 +54,117 @@ impl<S: State> Action<S> {
             .collect()
     }
 
-    pub fn name(&self) -> &str {
-        self.name.as_ref()
+    pub fn name(&self) -> String {
+        self.action.to_string()
     }
 }
 
-pub struct ActionBuilder<S: State> {
-    action: Action<S>,
+pub struct SingleActionBuilder<S: State, A: ActionType> {
+    preconditions: Vec<Rc<PreconditionFn<S>>>,
+    outcomes: Vec<Rc<OutcomeFn<S>>>,
+    action: Rc<A>,
+    action_type: PhantomData<A>,
 }
 
-impl<S: State> ActionBuilder<S> {
-    pub fn new(name: &str) -> Self {
+impl<S: State, A: ActionType + 'static> SingleActionBuilder<S, A> {
+    pub fn new(action: A) -> Self {
         Self {
-            action: Action {
-                name: name.to_owned(),
-                outcomes: vec![],
-                preconditions: vec![],
-            },
+            outcomes: vec![],
+            preconditions: vec![],
+            action_type: PhantomData,
+            action: Rc::new(action),
         }
     }
 
-    pub fn precondition(mut self, valid: Box<dyn Fn(&S) -> bool>) -> Self {
-        self.action.preconditions.push(valid);
+    pub fn precondition(mut self, valid: Rc<PreconditionFn<S>>) -> Self {
+        self.preconditions.push(valid);
         self
     }
 
-    pub fn outcome(mut self, effect: Box<dyn Fn(&mut S, &mut f64) -> f64>) -> Self {
-        self.action.outcomes.push(effect);
+    pub fn outcome(mut self, effect: Rc<OutcomeFn<S>>) -> Self {
+        self.outcomes.push(effect);
         self
     }
 
-    pub fn build(self) -> Action<S> {
-        self.action
+    pub fn build(&self) -> Action<S> {
+        Action {
+            action: self.action.clone(),
+            preconditions: self.preconditions.clone(),
+            outcomes: self.outcomes.clone(),
+        }
     }
 }
 
-// Might need this later hehe:
+pub struct GroundingActionBuilder<S: State, A: ActionType> {
+    preconditions: Vec<Rc<ActionBasedPreconditionFn<S, A>>>,
+    outcomes: Vec<Rc<ActionBasedOutcomeFn<S, A>>>,
+    action_type: PhantomData<A>,
+}
 
-// pub const BOOLEAN: [isize; 2] = [TRUE, FALSE];
+impl<S: State, A: ActionType + GrounableAction + 'static> GroundingActionBuilder<S, A> {
+    pub fn new() -> Self {
+        Self {
+            outcomes: vec![],
+            preconditions: vec![],
+            action_type: PhantomData,
+        }
+    }
 
-// #[derive(Clone)]
-// pub struct VariableSet {
-//     set: HashMap<String, Vec<isize>>,
-// }
+    pub fn precondition(mut self, valid: Rc<ActionBasedPreconditionFn<S, A>>) -> Self {
+        self.preconditions.push(valid);
+        self
+    }
 
-// impl VariableSet {
-//     pub fn new() -> Self {
-//         Self {
-//             set: HashMap::new(),
-//         }
-//     }
+    pub fn outcome(mut self, effect: Rc<ActionBasedOutcomeFn<S, A>>) -> Self {
+        self.outcomes.push(effect);
+        self
+    }
 
-//     pub fn add<T: Iterator<Item = isize>>(mut self, name: &str, values: T) -> Self {
-//         self.set.insert(name.to_owned(), values.collect());
-//         self
-//     }
+    pub fn build(&self) -> Vec<Action<S>> {
+        A::enumerate()
+            .into_iter()
+            .map(|action| {
+                let a = Rc::new(action);
+                let preconditions = self.preconditions.iter().map(|p| p(a.clone())).collect();
+                let outcomes = self.outcomes.iter().map(|p| p(a.clone())).collect();
+                return Action {
+                    action: a,
+                    preconditions,
+                    outcomes,
+                };
+            })
+            .collect()
+    }
+}
 
-//     pub fn add_slice(mut self, name: &str, values: &[isize]) -> Self {
-//         self.set.insert(name.to_owned(), values.to_vec());
-//         self
-//     }
+pub trait ActionType {
+    fn to_string(&self) -> String;
+}
 
-//     pub fn add_boolean(mut self, name: &str) -> Self {
-//         self.set.insert(name.to_owned(), BOOLEAN.to_vec());
-//         self
-//     }
+pub trait GrounableAction: Sized {
+    fn enumerate() -> Vec<Self>;
+}
 
-//     pub fn add_range(mut self, name: &str, range: Range<isize>) -> Self {
-//         self.set
-//             .insert(name.to_owned(), range.into_iter().collect());
-//         self
-//     }
-// }
+impl<T: Debug> ActionType for T {
+    fn to_string(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
+pub trait IActionBuilder<S: State> {
+    fn build(&self) -> Vec<Action<S>>;
+}
+
+impl<S: State, A: ActionType + 'static> IActionBuilder<S> for SingleActionBuilder<S, A> {
+    fn build(&self) -> Vec<Action<S>> {
+        vec![self.build()]
+    }
+}
+
+impl<S: State, A: ActionType + 'static + GrounableAction> IActionBuilder<S>
+    for GroundingActionBuilder<S, A>
+{
+    fn build(&self) -> Vec<Action<S>> {
+        GroundingActionBuilder::build(&self)
+    }
+}

@@ -1,31 +1,6 @@
-use crate::{mdp::Mdp, model::State};
-use std::fmt::Debug;
+use crate::{mdp::Mdp, model::State, policy::Policy};
 
-const EPSILON: f64 = 0.00001;
-
-#[derive(Debug)]
-pub struct Policy {
-    actions: Vec<Option<String>>,
-}
-
-impl Policy {
-    pub fn actions(&self) -> &[Option<String>] {
-        self.actions.as_ref()
-    }
-
-    pub fn print<S: State + Debug>(&self, mdp: &Mdp<S>, values: &[f64]) {
-        println!("================ Computed Policy ================\n");
-        for (state, (action, state_value)) in self.actions().iter().zip(values.iter()).enumerate() {
-            println!("State {} {:?}", state, mdp.states()[state]);
-            println!(
-                "  - Action:      {:?}",
-                action.as_ref().unwrap_or(&"None".to_string()),
-            );
-            println!("  - State Value: {:.1}", state_value,);
-            println!()
-        }
-    }
-}
+const EPSILON: f64 = 0.000001;
 
 pub struct ValueIterationSolver<'a, S: State> {
     values: Vec<f64>,
@@ -107,6 +82,7 @@ impl<'a, S: State> ValueIterationSolver<'a, S> {
                     .map(|(_, name)| name.to_string())
             })
             .collect();
-        Policy { actions }
+
+        Policy::new(actions)
     }
 }
