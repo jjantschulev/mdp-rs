@@ -1,18 +1,21 @@
 use std::fmt::Debug;
 
-use crate::{mdp::Mdp, model::State};
+use crate::{
+    mdp::Mdp,
+    model::{ActionBox, State},
+};
 
 #[derive(Debug)]
 pub struct Policy {
-    actions: Vec<Option<String>>,
+    actions: Vec<Option<ActionBox>>,
 }
 
 impl Policy {
-    pub fn new(actions: Vec<Option<String>>) -> Self {
+    pub fn new(actions: Vec<Option<ActionBox>>) -> Self {
         Self { actions }
     }
 
-    pub fn actions(&self) -> &[Option<String>] {
+    pub fn actions(&self) -> &[Option<ActionBox>] {
         self.actions.as_ref()
     }
 
@@ -20,10 +23,7 @@ impl Policy {
         println!("================ Computed Policy ================\n");
         for (state, (action, state_value)) in self.actions().iter().zip(values.iter()).enumerate() {
             println!("State {} {:?}", state, mdp.states()[state]);
-            println!(
-                "  - Action:      {:?}",
-                action.as_ref().unwrap_or(&"None".to_string()),
-            );
+            println!("  - Action:      {:?}", action.as_ref(),);
             println!("  - State Value: {:.1}", state_value,);
             println!()
         }
