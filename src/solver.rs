@@ -1,6 +1,6 @@
 use crate::{mdp::Mdp, model::State, policy::Policy};
 
-const EPSILON: f64 = 0.000001;
+const EPSILON: f64 = 0.00001;
 
 pub struct ValueIterationSolver<'a, S: State> {
     values: Vec<f64>,

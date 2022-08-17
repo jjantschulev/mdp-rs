@@ -21,8 +21,14 @@ type OutcomeFn<S> = dyn Fn(&mut S, &mut f64) -> f64;
 type ActionBasedPreconditionFn<S, A> = dyn Fn(Rc<A>) -> Rc<dyn Fn(&S) -> bool>;
 type ActionBasedOutcomeFn<S, A> = dyn Fn(Rc<A>) -> Rc<dyn Fn(&mut S, &mut f64) -> f64>;
 
-pub struct Action<S: State> {
+#[derive(Clone, Hash)]
+pub struct ActionBox {
+    id: usize,
     action: Rc<dyn ActionType>,
+}
+
+pub struct Action<S: State> {
+    action: ActionBox,
     preconditions: Vec<Rc<PreconditionFn<S>>>,
     outcomes: Vec<Rc<OutcomeFn<S>>>,
 }
@@ -54,7 +60,7 @@ impl<S: State> Action<S> {
             .collect()
     }
 
-    pub fn action(&self) -> Rc<dyn ActionType> {
+    pub fn action(&self) -> ActionBox {
         self.action.clone()
     }
 }
@@ -86,9 +92,12 @@ impl<S: State, A: ActionType + 'static> SingleActionBuilder<S, A> {
         self
     }
 
-    pub fn build(&self) -> Action<S> {
+    pub fn build(&self, action_index: usize) -> Action<S> {
         Action {
-            action: self.action.clone(),
+            action: ActionBox {
+                id: action_index,
+                action: self.action.clone(),
+            },
             preconditions: self.preconditions.clone(),
             outcomes: self.outcomes.clone(),
         }
@@ -120,7 +129,7 @@ impl<S: State, A: ActionType + GrounableAction + 'static> GroundingActionBuilder
         self
     }
 
-    pub fn build(&self) -> Vec<Action<S>> {
+    pub fn build(&self, action_index: usize) -> Vec<Action<S>> {
         A::enumerate()
             .into_iter()
             .map(|action| {
@@ -128,7 +137,10 @@ impl<S: State, A: ActionType + GrounableAction + 'static> GroundingActionBuilder
                 let preconditions = self.preconditions.iter().map(|p| p(a.clone())).collect();
                 let outcomes = self.outcomes.iter().map(|p| p(a.clone())).collect();
                 return Action {
-                    action: a,
+                    action: ActionBox {
+                        id: action_index,
+                        action: a,
+                    },
                     preconditions,
                     outcomes,
                 };
@@ -140,7 +152,6 @@ impl<S: State, A: ActionType + GrounableAction + 'static> GroundingActionBuilder
 pub trait ActionType {
     fn to_string(&self) -> String;
     fn hash(&self) -> u64;
-    fn eq(&self, other: &dyn ActionType) -> bool;
 }
 
 impl Debug for dyn ActionType {
@@ -155,13 +166,25 @@ impl Hash for dyn ActionType {
     }
 }
 
-impl PartialEq for dyn ActionType {
+impl PartialEq for ActionBox {
     fn eq(&self, other: &Self) -> bool {
-        self.hash() == other.hash()
+        self.id == other.id && ActionType::hash(&self.action) == ActionType::hash(&other.action)
     }
 }
 
-impl Eq for dyn ActionType {}
+impl Eq for ActionBox {}
+
+impl ActionBox {
+    pub fn to_string(&self) -> String {
+        self.action.to_string()
+    }
+}
+
+impl Debug for ActionBox {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}:{}", self.action, self.id)
+    }
+}
 
 impl<T: Debug + Hash> ActionType for T {
     fn to_string(&self) -> String {
@@ -172,25 +195,15 @@ impl<T: Debug + Hash> ActionType for T {
         self.hash(&mut hasher);
         hasher.finish()
     }
-
-    fn eq(&self, other: &dyn ActionType) -> bool {
-        let mut hasher = DefaultHasher::new();
-        self.hash(&mut hasher);
-        let my_hash = hasher.finish();
-        let mut hasher = DefaultHasher::new();
-        self.hash(&mut hasher);
-        let other_hash = hasher.finish();
-        my_hash == other_hash
-    }
 }
 
 pub trait IActionBuilder<S: State> {
-    fn build(&self) -> Vec<Action<S>>;
+    fn build(&self, action_index: usize) -> Vec<Action<S>>;
 }
 
 impl<S: State, A: ActionType + 'static> IActionBuilder<S> for SingleActionBuilder<S, A> {
-    fn build(&self) -> Vec<Action<S>> {
-        vec![self.build()]
+    fn build(&self, action_index: usize) -> Vec<Action<S>> {
+        vec![self.build(action_index)]
     }
 }
 
@@ -201,7 +214,7 @@ pub trait GrounableAction: Sized {
 impl<S: State, A: ActionType + 'static + GrounableAction> IActionBuilder<S>
     for GroundingActionBuilder<S, A>
 {
-    fn build(&self) -> Vec<Action<S>> {
-        GroundingActionBuilder::build(&self)
+    fn build(&self, action_index: usize) -> Vec<Action<S>> {
+        GroundingActionBuilder::build(&self, action_index)
     }
 }

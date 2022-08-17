@@ -1,9 +1,8 @@
-use crate::model::{self, ActionType, IActionBuilder, State};
+use crate::model::{self, ActionBox, IActionBuilder, State};
 
 use std::{
     collections::HashMap,
     fmt::{Debug, Display},
-    rc::Rc,
 };
 
 #[derive(Debug, Clone)]
@@ -12,7 +11,7 @@ pub struct Transition {
     to: usize,
     reward: f64,
     probability: f64,
-    action: Rc<dyn ActionType>,
+    action: ActionBox,
 }
 
 impl Transition {
@@ -45,7 +44,7 @@ impl Display for Transition {
 #[derive(Debug, Clone)]
 pub struct Mdp<S: State> {
     states: Vec<S>,
-    actions_from_states: Vec<HashMap<Rc<dyn ActionType>, Vec<Transition>>>,
+    actions_from_states: Vec<HashMap<ActionBox, Vec<Transition>>>,
 }
 
 impl<S: State> Mdp<S> {
@@ -119,7 +118,7 @@ impl<S: State> Mdp<S> {
         self.states.as_ref()
     }
 
-    pub fn actions(&self, state: usize) -> &HashMap<Rc<dyn ActionType>, Vec<Transition>> {
+    pub fn actions(&self, state: usize) -> &HashMap<ActionBox, Vec<Transition>> {
         &self.actions_from_states[state]
     }
 }
@@ -161,7 +160,13 @@ impl<S: State> MdpBuilder<S> {
     }
 
     pub fn build(self) -> Mdp<S> {
-        let actions = self.actions.iter().map(|a| a.build()).flatten().collect();
+        let actions = self
+            .actions
+            .iter()
+            .enumerate()
+            .map(|(i, a)| a.build(i))
+            .flatten()
+            .collect();
         Mdp::new(self.initial_state, actions)
     }
 }
