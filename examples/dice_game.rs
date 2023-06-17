@@ -18,8 +18,8 @@ struct WorldState {
 
 fn main() {
     let initial_state = WorldState {
-        dice: DICE,
-        turns: NUM_TURNS,
+        dice: -1,
+        turns: NUM_TURNS + 1,
     };
 
     let mdp = MdpBuilder::new(initial_state)
@@ -28,7 +28,7 @@ fn main() {
                 .precondition(Rc::new(|state| state.turns > 0));
             for v in 0..DICE {
                 a = a.outcome(Rc::new(move |state, _| {
-                    state.dice = v;
+                    state.dice = v + 1;
                     state.turns -= 1;
                     1.0 / DICE as f64
                 }));
@@ -37,7 +37,7 @@ fn main() {
         }))
         .add_action(Box::new(
             SingleActionBuilder::<WorldState, Take>::new(Take)
-                .precondition(Rc::new(|state| state.turns > 0))
+                .precondition(Rc::new(|state| state.turns > 0 && state.dice >= 0))
                 .outcome(Rc::new(move |state, reward| {
                     *reward = state.dice as f64;
                     state.turns -= 1;
@@ -49,8 +49,10 @@ fn main() {
     mdp.print();
 
     // Solve the MDP with a Value Iteration Solver
-    let mut solver = ValueIterationSolver::new(&mdp, 0.94);
+    let mut solver = ValueIterationSolver::new(&mdp, 1.0);
     solver.solve();
     let policy = solver.get_policy();
     policy.print(&mdp, solver.values());
+
+    // println!("================ Take Threshold ================\n");
 }
