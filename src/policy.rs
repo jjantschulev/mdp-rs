@@ -19,6 +19,10 @@ impl Policy {
         self.actions.as_ref()
     }
 
+    pub fn get_action(&self, state: usize) -> Option<&ActionBox> {
+        self.actions[state].as_ref()
+    }
+
     pub fn print<S: State + Debug>(&self, mdp: &Mdp<S>, values: &[f64]) {
         println!("================ Computed Policy ================\n");
         for (state, (action, state_value)) in self.actions().iter().zip(values.iter()).enumerate() {

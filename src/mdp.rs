@@ -114,6 +114,10 @@ impl<S: State> Mdp<S> {
         }
     }
 
+    pub fn index_of_state(&self, state: &S) -> Option<usize> {
+        self.states.iter().position(|s| s == state)
+    }
+
     pub fn states(&self) -> &[S] {
         self.states.as_ref()
     }
